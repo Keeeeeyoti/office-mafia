@@ -107,7 +107,7 @@ git
 
 ### Roadmap
 
-## ✅ **Phase 1: Project Setup & Foundations**
+## ✅ **Phase 1: Project Setup & Foundations(COMPLETED)**
 
 **Goal:** Lay down the environment and core structure for host/player experience.
 
