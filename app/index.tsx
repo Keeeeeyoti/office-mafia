@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { router } from 'expo-router';
 import { createClient } from '@supabase/supabase-js';
 
-type Page = 'home' | 'host' | 'player';
-
-export default function App() {
-  const [currentPage, setCurrentPage] = useState<Page>('home');
+export default function HomePage() {
   const [isTestingDB, setIsTestingDB] = useState(false);
 
   const handleTestDatabase = async () => {
@@ -88,7 +86,7 @@ export default function App() {
     }
   };
 
-  const renderHome = () => (
+  return (
     <View style={styles.container}>
       <Text style={styles.title}>🎩 Office Mafia</Text>
       <Text style={styles.subtitle}>Choose your role</Text>
@@ -96,7 +94,7 @@ export default function App() {
       <View style={styles.buttonContainer}>
         <TouchableOpacity 
           style={[styles.button, styles.hostButton]}
-          onPress={() => setCurrentPage('host')}
+          onPress={() => router.push('/host')}
         >
           <Text style={styles.buttonText}>🎯 Host Game</Text>
           <Text style={styles.buttonSubtext}>Create and manage a game</Text>
@@ -106,7 +104,7 @@ export default function App() {
         
         <TouchableOpacity 
           style={[styles.button, styles.playerButton]}
-          onPress={() => setCurrentPage('player')}
+          onPress={() => router.push('/player')}
         >
           <Text style={styles.buttonText}>👥 Join Game</Text>
           <Text style={styles.buttonSubtext}>Scan QR code to join</Text>
@@ -129,65 +127,6 @@ export default function App() {
       </View>
     </View>
   );
-
-  const renderHost = () => (
-    <View style={styles.container}>
-      <Text style={styles.title}>🎯 Host Game</Text>
-      <Text style={styles.subtitle}>Create and manage your Office Mafia game</Text>
-      
-      <View style={styles.content}>
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Game Setup</Text>
-          <Text style={styles.cardText}>
-            Ready to host your Office Mafia game? Click below to create a new session.
-          </Text>
-          
-          <TouchableOpacity style={styles.createButton}>
-            <Text style={styles.createButtonText}>Create New Game</Text>
-          </TouchableOpacity>
-        </View>
-        
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => setCurrentPage('home')}
-        >
-          <Text style={styles.backButtonText}>← Back to Home</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-
-  const renderPlayer = () => (
-    <View style={styles.container}>
-      <Text style={styles.title}>👥 Join Game</Text>
-      <Text style={styles.subtitle}>Enter your details to join an Office Mafia game</Text>
-      
-      <View style={styles.content}>
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Join Game</Text>
-          <Text style={styles.cardText}>
-            Player functionality coming soon...
-          </Text>
-        </View>
-        
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => setCurrentPage('home')}
-        >
-          <Text style={styles.backButtonText}>← Back to Home</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-
-  switch (currentPage) {
-    case 'host':
-      return renderHost();
-    case 'player':
-      return renderPlayer();
-    default:
-      return renderHome();
-  }
 }
 
 const styles = StyleSheet.create({
@@ -214,27 +153,26 @@ const styles = StyleSheet.create({
   buttonContainer: {
     width: '100%',
     maxWidth: 400,
-    alignItems: 'center',
+    marginBottom: 40,
   },
   button: {
-    width: '100%',
     padding: 20,
     borderRadius: 12,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    justifyContent: 'center',
+    minHeight: 80,
+  },
+  buttonSpacer: {
+    height: 20,
   },
   hostButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#dc2626',
   },
   playerButton: {
-    backgroundColor: '#2196F3',
+    backgroundColor: '#2563eb',
   },
   buttonText: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: 'bold',
     color: '#ffffff',
     marginBottom: 5,
@@ -243,82 +181,32 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#ffffff',
     opacity: 0.8,
-    textAlign: 'center',
-  },
-  buttonSpacer: {
-    height: 20,
   },
   testSection: {
-    marginTop: 40,
-    width: '100%',
-    maxWidth: 400,
     alignItems: 'center',
+    marginTop: 20,
   },
   testInstructions: {
     fontSize: 12,
-    color: '#888888',
+    color: '#cccccc',
     textAlign: 'center',
-    marginBottom: 15,
+    marginBottom: 10,
+    opacity: 0.7,
   },
   testButton: {
-    backgroundColor: '#FF9800',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
+    backgroundColor: '#059669',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
     borderRadius: 8,
-    width: '100%',
-    alignItems: 'center',
+    opacity: 0.9,
   },
   testButtonDisabled: {
-    backgroundColor: '#555555',
+    backgroundColor: '#666',
+    opacity: 0.6,
   },
   testButtonText: {
     color: '#ffffff',
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: 14,
+    fontWeight: '500',
   },
-  content: {
-    flex: 1,
-    width: '100%',
-    maxWidth: 400,
-    justifyContent: 'center',
-  },
-  card: {
-    backgroundColor: '#2a2a2a',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 20,
-  },
-  cardTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    marginBottom: 10,
-  },
-  cardText: {
-    fontSize: 16,
-    color: '#cccccc',
-    lineHeight: 24,
-    marginBottom: 20,
-  },
-  createButton: {
-    backgroundColor: '#4CAF50',
-    padding: 15,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  createButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  backButton: {
-    backgroundColor: '#666666',
-    padding: 15,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  backButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-  },
-});
+}); 
