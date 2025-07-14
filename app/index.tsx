@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import { createClient } from '@supabase/supabase-js';
 import { Building2, Users, UserPlus, Database } from 'lucide-react-native';
@@ -89,6 +89,11 @@ export default function HomePage() {
 
   return (
     <View style={styles.container}>
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
       <View style={styles.maxWidthContainer}>
         {/* Header */}
         <View style={styles.headerSection}>
@@ -116,7 +121,7 @@ export default function HomePage() {
                   <Users size={28} color="white" strokeWidth={1.5} />
                 </View>
                 <View style={styles.cardTextContainer}>
-                  <Text style={styles.cardTitle}>Host Experience</Text>
+                  <Text style={styles.cardTitle}>Host</Text>
                   <Text style={styles.cardSubtitle}>Create and orchestrate the game session</Text>
                 </View>
                 <View style={styles.cardIndicator} />
@@ -134,7 +139,7 @@ export default function HomePage() {
                   <UserPlus size={28} color="white" strokeWidth={1.5} />
                 </View>
                 <View style={styles.cardTextContainer}>
-                  <Text style={styles.cardTitle}>Player Experience</Text>
+                  <Text style={styles.cardTitle}>Player</Text>
                   <Text style={styles.cardSubtitle}>Join an existing game session</Text>
                 </View>
                 <View style={styles.cardIndicator} />
@@ -165,6 +170,7 @@ export default function HomePage() {
           </TouchableOpacity>
         </View>
       </View>
+      </ScrollView>
     </View>
   );
 }
@@ -174,9 +180,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8fafc', // slate-50 (gradient simplified to solid)
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24, // p-6 = 24px
   },
   // Container - matches: w-full max-w-lg space-y-12
   maxWidthContainer: {
@@ -337,5 +340,16 @@ const styles = StyleSheet.create({
     color: '#475569', // text-slate-600
     fontSize: 14,
     fontWeight: '300', // font-light
+  },
+  
+  // ScrollView styles
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
   },
 }); 

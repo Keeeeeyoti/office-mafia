@@ -1,16 +1,127 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { ArrowLeft, Smartphone, QrCode, Users } from 'lucide-react-native';
-
-const gameId = "GS-7429";
-const players = [
-  { id: 1, name: "Alexandra Chen", joinedAt: "2m", role: "pending" },
-  { id: 2, name: "Marcus Thompson", joinedAt: "1m", role: "pending" },
-  { id: 3, name: "Sarah Williams", joinedAt: "30s", role: "pending" },
-];
+import { supabase, Game, Player } from '../utils/supabaseClient';
+import { createGame, getGamePlayers, generateHostId, generateQRCodeData, generateQRCodeSVG, formatTimeAgo, updateGameStatus } from '../utils/gameHelpers';
 
 export default function HostPage() {
+  const [game, setGame] = useState<Game | null>(null);
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [hostId, setHostId] = useState<string>('');
+  const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
+
+  useEffect(() => {
+    // Generate host ID and create game on component mount
+    const initializeGame = async () => {
+      console.log('🚀 Initializing host game...');
+      
+      const newHostId = generateHostId();
+      console.log('👤 Generated hostId:', newHostId);
+      setHostId(newHostId);
+      
+      console.log('🎮 Creating game...');
+      const { game: newGame, error } = await createGame(newHostId);
+      
+      if (error) {
+        console.error('❌ Host game creation failed:', error);
+        Alert.alert('Error', `Failed to create game: ${error}`);
+        setLoading(false);
+        return;
+      }
+      
+      if (newGame) {
+        console.log('✅ Host game created successfully:', newGame);
+        setGame(newGame);
+        
+        // Generate QR code
+        const qrData = generateQRCodeData(newGame.game_code);
+        const qrUrl = generateQRCodeSVG(qrData, 192);
+        setQrCodeUrl(qrUrl);
+        console.log('🔗 QR code generated:', qrUrl);
+        
+        // Load initial players (should be empty)
+        const { players: initialPlayers } = await getGamePlayers(newGame.id);
+        setPlayers(initialPlayers);
+        console.log('👥 Initial players loaded:', initialPlayers.length);
+      }
+      
+      setLoading(false);
+      console.log('✅ Host initialization complete');
+    };
+
+    initializeGame();
+  }, []);
+
+  useEffect(() => {
+    if (!game) return;
+
+    // Subscribe to real-time player updates
+    const playersSubscription = supabase
+      .channel(`players-${game.id}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'players',
+        filter: `game_id=eq.${game.id}`,
+      }, async (payload) => {
+        // Refresh player list when changes occur
+        const { players: updatedPlayers } = await getGamePlayers(game.id);
+        setPlayers(updatedPlayers);
+      })
+      .subscribe();
+
+    return () => {
+      playersSubscription.unsubscribe();
+    };
+  }, [game]);
+
+  const handleStartGame = async () => {
+    if (!game || players.length < 3) return;
+
+    const { error } = await updateGameStatus(game.id, 'in_progress', 'night');
+    
+    if (error) {
+      Alert.alert('Error', `Failed to start game: ${error}`);
+      return;
+    }
+
+    // Navigate to game screen (will be implemented in later phases)
+    Alert.alert('Game Started!', 'The game has begun. Game flow will be implemented in the next phase.');
+  };
+
+  const copyGameCode = () => {
+    if (game) {
+      // For web, we can use the Clipboard API if available
+      if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        navigator.clipboard.writeText(game.game_code);
+        Alert.alert('Copied!', 'Game code copied to clipboard');
+      } else {
+        Alert.alert('Game Code', `Share this code with players: ${game.game_code}`);
+      }
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <Text style={styles.loadingText}>Creating game session...</Text>
+      </View>
+    );
+  }
+
+  if (!game) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <Text style={styles.errorText}>Failed to create game session</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={() => router.push('/')}>
+          <Text style={styles.retryButtonText}>Return Home</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <ScrollView 
@@ -41,8 +152,8 @@ export default function HostPage() {
           </View>
           <Text style={styles.gameIdLabel}>Session Identifier</Text>
           <View style={styles.gameIdContainer}>
-            <Text style={styles.gameIdText}>{gameId}</Text>
-            <TouchableOpacity style={styles.copyButton}>
+            <Text style={styles.gameIdText}>{game.game_code}</Text>
+            <TouchableOpacity style={styles.copyButton} onPress={copyGameCode}>
               <Text style={styles.copyIcon}>📋</Text>
             </TouchableOpacity>
           </View>
@@ -53,7 +164,15 @@ export default function HostPage() {
       <View style={styles.qrCard}>
         <View style={styles.qrDisplay}>
           <View style={styles.qrCodeContainer}>
-            <QrCode size={96} color="#e2e8f0" strokeWidth={1} />
+            {qrCodeUrl ? (
+              <Image 
+                source={{ uri: qrCodeUrl }} 
+                style={styles.qrCodeImage}
+                resizeMode="contain"
+              />
+            ) : (
+              <QrCode size={96} color="#e2e8f0" strokeWidth={1} />
+            )}
           </View>
           <Text style={styles.qrInstructions}>Participants scan to join session</Text>
         </View>
@@ -90,7 +209,7 @@ export default function HostPage() {
                   </View>
                   <View style={styles.playerInfo}>
                     <Text style={styles.playerName}>{player.name}</Text>
-                    <Text style={styles.playerJoinTime}>Joined {player.joinedAt} ago</Text>
+                    <Text style={styles.playerJoinTime}>Joined {formatTimeAgo(player.joined_at)} ago</Text>
                   </View>
                 </View>
                 <View style={styles.playerStatus} />
@@ -104,6 +223,7 @@ export default function HostPage() {
       <TouchableOpacity
         style={[styles.startButton, players.length < 3 && styles.startButtonDisabled]}
         disabled={players.length < 3}
+        onPress={handleStartGame}
       >
         <View style={styles.startButtonContent}>
           <Text style={styles.startButtonIcon}>▶️</Text>
@@ -124,6 +244,33 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8fafc', // Light background (slate-50)
+  },
+  centered: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 18,
+    fontWeight: '300',
+    color: '#475569',
+  },
+  errorText: {
+    fontSize: 18,
+    fontWeight: '300',
+    color: '#ef4444',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  retryButton: {
+    backgroundColor: '#1e293b',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  retryButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '300',
   },
   scrollView: {
     flex: 1,
@@ -257,6 +404,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
+  },
+  qrCodeImage: {
+    width: 160,
+    height: 160,
   },
   qrCodeIcon: {
     fontSize: 64,
