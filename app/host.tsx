@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Alert } fr
 import { router } from 'expo-router';
 import { ArrowLeft, Smartphone, QrCode, Users } from 'lucide-react-native';
 import { supabase, Game, Player } from '../utils/supabaseClient';
-import { createGame, getGamePlayers, generateHostId, generateQRCodeData, generateQRCodeSVG, formatTimeAgo, updateGameStatus } from '../utils/gameHelpers';
+import { createGame, getGamePlayers, generateHostId, generateQRCodeData, generateQRCodeSVG, formatTimeAgo, updateGameStatus, assignRolesToPlayers } from '../utils/gameHelpers';
 
 export default function HostPage() {
   const [game, setGame] = useState<Game | null>(null);
@@ -11,6 +11,7 @@ export default function HostPage() {
   const [loading, setLoading] = useState(true);
   const [hostId, setHostId] = useState<string>('');
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
+  const [gamePhase, setGamePhase] = useState<'lobby' | 'in_progress'>('lobby');
 
   useEffect(() => {
     // Generate host ID and create game on component mount
@@ -80,15 +81,33 @@ export default function HostPage() {
   const handleStartGame = async () => {
     if (!game || players.length < 3) return;
 
-    const { error } = await updateGameStatus(game.id, 'in_progress', 'night');
-    
-    if (error) {
-      Alert.alert('Error', `Failed to start game: ${error}`);
-      return;
-    }
+    try {
+      console.log('🎮 Starting game with role assignment...');
+      
+      // Step 1: Assign roles to all players
+      const { success: roleSuccess, error: roleError } = await assignRolesToPlayers(game.id);
+      
+      if (!roleSuccess || roleError) {
+        Alert.alert('Error', `Failed to assign roles: ${roleError}`);
+        return;
+      }
+      
+      // Step 2: Update game status to in progress
+      const { error: statusError } = await updateGameStatus(game.id, 'in_progress', 'night');
+      
+      if (statusError) {
+        Alert.alert('Error', `Failed to start game: ${statusError}`);
+        return;
+      }
 
-    // Navigate to game screen (will be implemented in later phases)
-    Alert.alert('Game Started!', 'The game has begun. Game flow will be implemented in the next phase.');
+      console.log('🎉 Game started successfully with roles assigned!');
+      setGamePhase('in_progress');
+      Alert.alert('Game Started!', `Roles have been assigned to ${players.length} players. The game has begun!`);
+      
+    } catch (error) {
+      console.error('❌ Error starting game:', error);
+      Alert.alert('Error', 'An unexpected error occurred while starting the game.');
+    }
   };
 
   const copyGameCode = () => {
@@ -122,6 +141,77 @@ export default function HostPage() {
     );
   }
 
+  // Show different UI based on game phase
+  if (gamePhase === 'in_progress') {
+    return (
+      <View style={styles.container}>
+        <ScrollView 
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Header */}
+          <View style={styles.header}>
+            <TouchableOpacity 
+              style={styles.backButton}
+              onPress={() => router.push('/')}
+            >
+              <ArrowLeft size={20} color="#475569" strokeWidth={1.5} />
+            </TouchableOpacity>
+            <View style={styles.headerContent}>
+              <Text style={styles.title}>Game in Progress</Text>
+              <Text style={styles.subtitle}>Moderator Dashboard</Text>
+            </View>
+            <View style={styles.headerSpacer} />
+          </View>
+
+          {/* Game Info */}
+          <View style={styles.gameInfoCard}>
+            <Text style={styles.gameInfoTitle}>Game: {game?.game_code}</Text>
+            <Text style={styles.gameInfoSubtitle}>{players.length} players participating</Text>
+          </View>
+
+          {/* Player List with Roles */}
+          <View style={styles.playersCard}>
+            <View style={styles.playersHeader}>
+              <Text style={styles.playersTitle}>Player Status</Text>
+            </View>
+            <View style={styles.participantsList}>
+              {players.map((player, index) => (
+                <View key={player.id} style={styles.playerItemInGame}>
+                  <View style={styles.playerContent}>
+                    <View style={styles.playerNumber}>
+                      <Text style={styles.playerNumberText}>
+                        {String(index + 1).padStart(2, "0")}
+                      </Text>
+                    </View>
+                    <View style={styles.playerInfo}>
+                      <Text style={styles.playerName}>{player.name}</Text>
+                      <Text style={styles.playerRole}>
+                        {player.role ? `${player.role.charAt(0).toUpperCase()}${player.role.slice(1)}` : 'No role'}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={[
+                    styles.playerStatus, 
+                    { backgroundColor: player.is_alive ? '#10b981' : '#dc2626' }
+                  ]} />
+                </View>
+              ))}
+            </View>
+          </View>
+
+          {/* Phase 3.5 placeholder for moderator scripts */}
+          <View style={styles.scriptCard}>
+            <Text style={styles.scriptTitle}>Moderator Scripts</Text>
+            <Text style={styles.scriptSubtitle}>Coming in Phase 3.5 - Beta completion</Text>
+          </View>
+        </ScrollView>
+      </View>
+    );
+  }
+
+  // Show lobby view
   return (
     <View style={styles.container}>
       <ScrollView 
@@ -579,5 +669,85 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     opacity: 0.75,
     marginLeft: 12,
+  },
+  
+  // In-progress game styles
+  gameInfoCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 24,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    elevation: 4,
+    alignItems: 'center',
+  },
+  gameInfoTitle: {
+    fontSize: 20,
+    fontWeight: '300',
+    color: '#0f172a',
+    marginBottom: 4,
+  },
+  gameInfoSubtitle: {
+    fontSize: 14,
+    fontWeight: '300',
+    color: '#64748b',
+  },
+  playersCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    elevation: 4,
+  },
+  playersHeader: {
+    padding: 24,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+  },
+  playersTitle: {
+    fontSize: 18,
+    fontWeight: '300',
+    color: '#0f172a',
+  },
+  playerItemInGame: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  playerRole: {
+    fontSize: 12,
+    fontWeight: '300',
+    color: '#8BB4D8',
+    textTransform: 'capitalize',
+  },
+  scriptCard: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 16,
+    padding: 32,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderStyle: 'dashed',
+  },
+  scriptTitle: {
+    fontSize: 18,
+    fontWeight: '300',
+    color: '#475569',
+    marginBottom: 8,
+  },
+  scriptSubtitle: {
+    fontSize: 14,
+    fontWeight: '300',
+    color: '#64748b',
   },
 }); 

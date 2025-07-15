@@ -225,16 +225,124 @@ export function formatTimeAgo(timestamp: string): string {
   return `${Math.floor(diffInSeconds / 86400)}d`;
 }
 
-// Role assignment logic (for later phases)
-export function assignRoles(playerCount: number): { [role: string]: number } {
-  // Simple role assignment logic based on player count
-  if (playerCount < 4) {
-    return { employee: playerCount - 1, rogue: 1, audit: 0, hr: 0 };
-  } else if (playerCount <= 6) {
-    return { employee: playerCount - 2, rogue: 1, audit: 1, hr: 0 };
-  } else if (playerCount <= 9) {
-    return { employee: playerCount - 3, rogue: 2, audit: 1, hr: 0 };
+// Role assignment logic
+export interface RoleDistribution {
+  employee: number;
+  rogue: number;
+  audit: number;
+  hr: number;
+}
+
+export function calculateRoleDistribution(playerCount: number): RoleDistribution {
+  console.log(`🎭 Calculating role distribution for ${playerCount} players`);
+  
+  if (playerCount < 3) {
+    throw new Error('Minimum 3 players required to start a game');
+  }
+  
+  let distribution: RoleDistribution;
+  
+  if (playerCount === 3) {
+    // 3 players: 2 employees, 1 rogue
+    distribution = { employee: 2, rogue: 1, audit: 0, hr: 0 };
+  } else if (playerCount === 4) {
+    // 4 players: 2 employees, 1 rogue, 1 audit
+    distribution = { employee: 2, rogue: 1, audit: 1, hr: 0 };
+  } else if (playerCount === 5) {
+    // 5 players: 3 employees, 1 rogue, 1 audit
+    distribution = { employee: 3, rogue: 1, audit: 1, hr: 0 };
+  } else if (playerCount === 6) {
+    // 6 players: 3 employees, 2 rogues, 1 audit
+    distribution = { employee: 3, rogue: 2, audit: 1, hr: 0 };
+  } else if (playerCount === 7) {
+    // 7 players: 4 employees, 2 rogues, 1 audit
+    distribution = { employee: 4, rogue: 2, audit: 1, hr: 0 };
+  } else if (playerCount === 8) {
+    // 8 players: 4 employees, 2 rogues, 1 audit, 1 hr
+    distribution = { employee: 4, rogue: 2, audit: 1, hr: 1 };
   } else {
-    return { employee: playerCount - 4, rogue: 2, audit: 1, hr: 1 };
+    // 9+ players: Scale proportionally
+    const rogueCount = Math.floor(playerCount / 3); // ~33% rogues
+    const specialRoles = Math.min(2, Math.floor(playerCount / 4)); // 1-2 special roles
+    const employeeCount = playerCount - rogueCount - specialRoles;
+    
+    distribution = {
+      employee: employeeCount,
+      rogue: rogueCount,
+      audit: specialRoles >= 1 ? 1 : 0,
+      hr: specialRoles >= 2 ? 1 : 0
+    };
+  }
+  
+  console.log('🎭 Role distribution:', distribution);
+  return distribution;
+}
+
+export async function assignRolesToPlayers(gameId: string): Promise<{ success: boolean; error: string | null }> {
+  try {
+    console.log(`🎯 Assigning roles for game ${gameId}`);
+    
+    // Get all players for this game (excluding host)
+    const { data: players, error: playersError } = await supabase
+      .from('players')
+      .select('id, name')
+      .eq('game_id', gameId)
+      .eq('is_host', false)
+      .order('joined_at');
+    
+    if (playersError || !players) {
+      console.error('❌ Failed to fetch players:', playersError);
+      return { success: false, error: playersError?.message || 'Failed to fetch players' };
+    }
+    
+    if (players.length < 3) {
+      return { success: false, error: 'Minimum 3 players required to start the game' };
+    }
+    
+    // Calculate role distribution
+    const distribution = calculateRoleDistribution(players.length);
+    
+    // Create array of roles to assign
+    const rolesToAssign: string[] = [];
+    for (let i = 0; i < distribution.employee; i++) rolesToAssign.push('employee');
+    for (let i = 0; i < distribution.rogue; i++) rolesToAssign.push('rogue');
+    for (let i = 0; i < distribution.audit; i++) rolesToAssign.push('audit');
+    for (let i = 0; i < distribution.hr; i++) rolesToAssign.push('hr');
+    
+    // Shuffle roles randomly
+    for (let i = rolesToAssign.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [rolesToAssign[i], rolesToAssign[j]] = [rolesToAssign[j], rolesToAssign[i]];
+    }
+    
+    console.log('🎭 Shuffled roles:', rolesToAssign);
+    
+    // Assign roles to players
+    const assignments = players.map((player, index) => ({
+      id: player.id,
+      role: rolesToAssign[index]
+    }));
+    
+    // Update players with their assigned roles
+    for (const assignment of assignments) {
+      const { error: updateError } = await supabase
+        .from('players')
+        .update({ role: assignment.role })
+        .eq('id', assignment.id);
+      
+      if (updateError) {
+        console.error(`❌ Failed to assign role to player ${assignment.id}:`, updateError);
+        return { success: false, error: `Failed to assign role: ${updateError.message}` };
+      }
+      
+      console.log(`✅ Assigned ${assignment.role} to player ${assignment.id}`);
+    }
+    
+    console.log('🎉 Role assignment completed successfully!');
+    return { success: true, error: null };
+    
+  } catch (err) {
+    console.error('💥 Unexpected error during role assignment:', err);
+    return { success: false, error: 'Failed to assign roles' };
   }
 } 

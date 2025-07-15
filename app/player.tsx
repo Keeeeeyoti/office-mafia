@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, Camera, Smartphone, User, Users, Clock } from 'lucide-react-native';
 import { supabase, Game, Player } from '../utils/supabaseClient';
 import { joinGame, getGamePlayers, formatTimeAgo } from '../utils/gameHelpers';
+import RoleCard from '../components/RoleCard';
 
 export default function PlayerPage() {
   const { gameId: urlGameId } = useLocalSearchParams();
@@ -13,7 +14,7 @@ export default function PlayerPage() {
   const [joinedGame, setJoinedGame] = useState<Game | null>(null);
   const [currentPlayer, setCurrentPlayer] = useState<Player | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
-  const [gameStatus, setGameStatus] = useState<'waiting' | 'in_progress' | 'completed'>('waiting');
+  const [gameStatus, setGameStatus] = useState<'waiting' | 'in_progress' | 'completed' | 'abandoned'>('waiting');
 
   useEffect(() => {
     // If we have URL parameters, show them in the form
@@ -33,12 +34,23 @@ export default function PlayerPage() {
         schema: 'public',
         table: 'games',
         filter: `id=eq.${joinedGame.id}`,
-      }, (payload) => {
+      }, async (payload) => {
         const updatedGame = payload.new as Game;
         setGameStatus(updatedGame.status);
         
         if (updatedGame.status === 'in_progress') {
-          Alert.alert('Game Started!', 'The game has begun. You will see your role shortly.');
+          Alert.alert('Game Started!', 'The game has begun. You will see your role now.');
+          
+          // Refresh current player to get assigned role
+          const { data: updatedPlayer } = await supabase
+            .from('players')
+            .select('*')
+            .eq('id', currentPlayer?.id)
+            .single();
+          
+          if (updatedPlayer) {
+            setCurrentPlayer(updatedPlayer);
+          }
         }
       })
       .subscribe();
@@ -126,8 +138,40 @@ export default function PlayerPage() {
     );
   };
 
-  // If player has joined a game, show the lobby view
+  // If player has joined a game, show the appropriate view
   if (joinedGame && currentPlayer) {
+    // If game is in progress and player has a role, show role card
+    if (gameStatus === 'in_progress' && currentPlayer.role) {
+      return (
+        <View style={styles.container}>
+          <ScrollView 
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Header */}
+            <View style={styles.header}>
+              <TouchableOpacity 
+                style={styles.backButton}
+                onPress={handleLeaveGame}
+              >
+                <ArrowLeft size={20} color="#475569" strokeWidth={1.5} />
+              </TouchableOpacity>
+              <View style={styles.headerContent}>
+                <Text style={styles.title}>Your Role</Text>
+                <Text style={styles.subtitle}>Game: {joinedGame.game_code}</Text>
+              </View>
+              <View style={styles.headerSpacer} />
+            </View>
+
+            {/* Role Card */}
+            <RoleCard role={currentPlayer.role} playerName={currentPlayer.name} />
+          </ScrollView>
+        </View>
+      );
+    }
+
+    // Show lobby view if game is waiting
     return (
       <View style={styles.container}>
         <ScrollView 
