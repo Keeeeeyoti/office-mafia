@@ -10,7 +10,16 @@ interface PlayerListProps {
 export function PlayerList({ players, showRoles = false }: PlayerListProps) {
   const renderPlayer = ({ item }: { item: Player }) => (
     <View style={[styles.playerCard, !item.is_alive && styles.deadPlayer]}>
-      <Text style={styles.playerName}>{item.name}</Text>
+      <View style={styles.playerHeader}>
+        <Text style={styles.playerName}>{item.name}</Text>
+        {item.performance_bonus > 0 && (
+          <View style={styles.performanceBadge}>
+            <Text style={styles.performanceBadgeText}>
+              +{item.performance_bonus}% performance bonus
+            </Text>
+          </View>
+        )}
+      </View>
       {showRoles && item.role && (
         <Text style={styles.playerRole}>{getRoleDisplay(item.role)}</Text>
       )}
@@ -75,10 +84,27 @@ const styles = StyleSheet.create({
     backgroundColor: '#1a1a1a',
     opacity: 0.6,
   },
+  playerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
   playerName: {
     fontSize: 16,
     color: '#ffffff',
     fontWeight: '500',
+  },
+  performanceBadge: {
+    backgroundColor: '#8BB4D8',
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginLeft: 8,
+  },
+  performanceBadgeText: {
+    fontSize: 10,
+    fontWeight: '300',
+    color: 'white',
   },
   playerRole: {
     fontSize: 14,

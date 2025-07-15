@@ -64,9 +64,10 @@ export const ROLE_DATA: Record<string, RoleInfo> = {
 interface RoleCardProps {
   role: string;
   playerName: string;
+  performanceBonus?: number;
 }
 
-export default function RoleCard({ role, playerName }: RoleCardProps) {
+export default function RoleCard({ role, playerName, performanceBonus }: RoleCardProps) {
   const roleInfo = ROLE_DATA[role];
   
   if (!roleInfo) {
@@ -85,7 +86,14 @@ export default function RoleCard({ role, playerName }: RoleCardProps) {
           {roleInfo.icon}
         </View>
         <View style={styles.headerText}>
-          <Text style={styles.greeting}>Welcome, {playerName}</Text>
+          <View style={styles.greetingRow}>
+            <Text style={styles.greeting}>Welcome, {playerName}</Text>
+            {performanceBonus && performanceBonus > 0 && (
+              <View style={styles.bonusBadge}>
+                <Text style={styles.bonusBadgeText}>+{performanceBonus}% performance bonus</Text>
+              </View>
+            )}
+          </View>
           <Text style={styles.roleName}>{roleInfo.name}</Text>
         </View>
       </View>
@@ -258,5 +266,21 @@ const styles = StyleSheet.create({
     color: '#64748b',
     lineHeight: 20,
     textAlign: 'center',
+  },
+  greetingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  bonusBadge: {
+    backgroundColor: '#8BB4D8',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    marginLeft: 8,
+  },
+  bonusBadgeText: {
+    fontSize: 10,
+    fontWeight: '300',
+    color: 'white',
   },
 }); 

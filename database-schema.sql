@@ -18,7 +18,8 @@ CREATE TABLE players (
     role TEXT CHECK (role IN ('employee', 'rogue', 'audit', 'hr')),
     is_alive BOOLEAN DEFAULT TRUE,
     joined_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    is_host BOOLEAN DEFAULT FALSE
+    is_host BOOLEAN DEFAULT FALSE,
+    performance_bonus INTEGER DEFAULT 0
 );
 
 -- Game events table (for tracking game history)

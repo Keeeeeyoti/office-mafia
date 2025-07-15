@@ -186,7 +186,16 @@ export default function HostPage() {
                       </Text>
                     </View>
                     <View style={styles.playerInfo}>
-                      <Text style={styles.playerName}>{player.name}</Text>
+                      <View style={styles.playerNameRowHost}>
+                        <Text style={styles.playerName}>{player.name}</Text>
+                        {player.performance_bonus > 0 && (
+                          <View style={styles.performanceBadgeHost}>
+                            <Text style={styles.performanceBadgeTextHost}>
+                              +{player.performance_bonus}% performance bonus
+                            </Text>
+                          </View>
+                        )}
+                      </View>
                       <Text style={styles.playerRole}>
                         {player.role ? `${player.role.charAt(0).toUpperCase()}${player.role.slice(1)}` : 'No role'}
                       </Text>
@@ -298,7 +307,16 @@ export default function HostPage() {
                     </Text>
                   </View>
                   <View style={styles.playerInfo}>
-                    <Text style={styles.playerName}>{player.name}</Text>
+                    <View style={styles.playerNameRowHost}>
+                      <Text style={styles.playerName}>{player.name}</Text>
+                      {player.performance_bonus > 0 && (
+                        <View style={styles.performanceBadgeHost}>
+                          <Text style={styles.performanceBadgeTextHost}>
+                            +{player.performance_bonus}% performance bonus
+                          </Text>
+                        </View>
+                      )}
+                    </View>
                     <Text style={styles.playerJoinTime}>Joined {formatTimeAgo(player.joined_at)} ago</Text>
                   </View>
                 </View>
@@ -749,5 +767,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '300',
     color: '#64748b',
+  },
+  playerNameRowHost: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  performanceBadgeHost: {
+    backgroundColor: '#8BB4D8',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginLeft: 8,
+  },
+  performanceBadgeTextHost: {
+    fontSize: 9,
+    fontWeight: '300',
+    color: 'white',
   },
 }); 

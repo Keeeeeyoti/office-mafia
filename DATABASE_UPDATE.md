@@ -105,4 +105,21 @@ SELECT cleanup_old_games();
 - **24 hours**: Very old abandoned games are completely deleted
 - **Automatic**: Cleanup runs every time a new game is created
 
-Your database will now stay clean and players won't get confused by expired game sessions! 
+Your database will now stay clean and players won't get confused by expired game sessions!
+
+## 🎯 **Easter Egg Feature: Performance Bonus System**
+
+### Add Performance Bonus Column
+
+Run this in your **Supabase SQL Editor** to add the performance bonus feature:
+
+```sql
+-- Add performance_bonus column to players table
+ALTER TABLE players ADD COLUMN performance_bonus INTEGER DEFAULT 0;
+```
+
+### What This Does
+- Adds a hidden "Oowee" button during lobby waiting period
+- Every 10 clicks gives +1% performance bonus
+- Bonus displays next to player names in lobby and during game
+- Pure easter egg feature for fun! 

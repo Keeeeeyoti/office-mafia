@@ -84,6 +84,20 @@ git
 - Complex voting systems
 - Advanced role abilities
 
+### 🥚 Easter Eggs & Special Features
+
+- ✅ **"Oowee" Performance Bonus System**
+  - Hidden button at the bottom of player lobby screen during waiting period
+  - Subtle design maintains minimalist aesthetic with brand colors (#8BB4D8)
+  - Every 10 clicks = +1% performance bonus stored in database
+  - Blue badges display bonuses next to player names in all views:
+    - Player lobby screen
+    - Host dashboard during game
+    - Player role cards
+  - Real-time synchronization across all connected clients
+  - Database field: `performance_bonus` (integer) in players table
+  - Corporate humor: rewards "dedication" and "extra effort" for the company
+
 ---
 
 ## 🧱📁 File & Folder Structure (Expo + Supabase)
@@ -155,7 +169,7 @@ git
 ## 🎭 **Phase 3: Role Assignment & Private Reveal**
 
 **Goal:** Assign and deliver secret roles to each player after the host starts the game.
-
+npm
 ### Tasks
 
 - [ ]  Backend function to:

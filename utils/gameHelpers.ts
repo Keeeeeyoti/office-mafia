@@ -345,4 +345,73 @@ export async function assignRolesToPlayers(gameId: string): Promise<{ success: b
     console.error('💥 Unexpected error during role assignment:', err);
     return { success: false, error: 'Failed to assign roles' };
   }
+}
+
+// Generate random bonus with weighted probability (1% = 80%, higher values exponentially rarer)
+function generateRandomBonus(): number {
+  const random = Math.random();
+  
+  // 80% chance for 1%
+  if (random < 0.8) return 1;
+  
+  // Remaining 20% distributed exponentially across 2-15%
+  const remaining = (random - 0.8) / 0.2; // Normalize to 0-1 for remaining 20%
+  
+  // Exponential distribution: higher values are exponentially rarer
+  // Using formula: bonus = 2 + floor(-log(1-remaining) * 3)
+  // This creates exponential decay with max around 15%
+  const exponentialValue = Math.floor(-Math.log(1 - remaining * 0.99) * 3);
+  const bonus = Math.min(2 + exponentialValue, 15);
+  
+  return bonus;
+}
+
+// Performance bonus system (easter egg)
+export async function updatePerformanceBonus(playerId: string, clicks: number): Promise<{ success: boolean; error: string | null; newBonus: number; bonusEarned?: number }> {
+  try {
+    console.log(`🎯 Updating performance bonus for player ${playerId}, clicks: ${clicks}`);
+    
+    // Check if this is a milestone (every 10 clicks)
+    const milestones = Math.floor(clicks / 10);
+    const previousMilestones = Math.floor((clicks - 1) / 10);
+    
+    if (milestones <= previousMilestones) {
+      // No new milestone reached
+      return { success: true, error: null, newBonus: 0 };
+    }
+    
+    // Get current bonus
+    const { data: currentPlayer, error: fetchError } = await supabase
+      .from('players')
+      .select('performance_bonus')
+      .eq('id', playerId)
+      .single();
+    
+    if (fetchError || !currentPlayer) {
+      console.error('❌ Failed to fetch current bonus:', fetchError);
+      return { success: false, error: 'Failed to fetch current bonus', newBonus: 0 };
+    }
+    
+    // Generate random bonus amount
+    const bonusEarned = generateRandomBonus();
+    const newBonus = (currentPlayer.performance_bonus || 0) + bonusEarned;
+    
+    // Update the bonus
+    const { error: updateError } = await supabase
+      .from('players')
+      .update({ performance_bonus: newBonus })
+      .eq('id', playerId);
+    
+    if (updateError) {
+      console.error('❌ Failed to update performance bonus:', updateError);
+      return { success: false, error: updateError.message, newBonus: 0 };
+    }
+    
+    console.log(`✅ Performance bonus updated: +${bonusEarned}% earned, total: ${newBonus}%`);
+    return { success: true, error: null, newBonus, bonusEarned };
+    
+  } catch (err) {
+    console.error('💥 Unexpected error updating performance bonus:', err);
+    return { success: false, error: 'Failed to update performance bonus', newBonus: 0 };
+  }
 } 

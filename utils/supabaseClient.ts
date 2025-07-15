@@ -53,6 +53,7 @@ export interface Database {
           is_alive: boolean;
           joined_at: string;
           is_host: boolean;
+          performance_bonus: number;
         };
         Insert: {
           id?: string;
@@ -62,6 +63,7 @@ export interface Database {
           is_alive?: boolean;
           joined_at?: string;
           is_host?: boolean;
+          performance_bonus?: number;
         };
         Update: {
           id?: string;
@@ -71,6 +73,7 @@ export interface Database {
           is_alive?: boolean;
           joined_at?: string;
           is_host?: boolean;
+          performance_bonus?: number;
         };
       };
       game_events: {

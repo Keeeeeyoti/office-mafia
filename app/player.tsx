@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert 
 import { router, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, Camera, Smartphone, User, Users, Clock } from 'lucide-react-native';
 import { supabase, Game, Player } from '../utils/supabaseClient';
-import { joinGame, getGamePlayers, formatTimeAgo } from '../utils/gameHelpers';
+import { joinGame, getGamePlayers, formatTimeAgo, updatePerformanceBonus } from '../utils/gameHelpers';
 import RoleCard from '../components/RoleCard';
 
 export default function PlayerPage() {
@@ -15,6 +15,8 @@ export default function PlayerPage() {
   const [currentPlayer, setCurrentPlayer] = useState<Player | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
   const [gameStatus, setGameStatus] = useState<'waiting' | 'in_progress' | 'completed' | 'abandoned'>('waiting');
+  const [ooweeClicks, setOoweeClicks] = useState(0);
+  const [isOoweeProcessing, setIsOoweeProcessing] = useState(false);
 
   useEffect(() => {
     // If we have URL parameters, show them in the form
@@ -138,6 +140,44 @@ export default function PlayerPage() {
     );
   };
 
+  const handleOoweeClick = async () => {
+    if (!currentPlayer || isOoweeProcessing || gameStatus !== 'waiting') return;
+    
+    const newClickCount = ooweeClicks + 1;
+    setOoweeClicks(newClickCount);
+    
+    // Every 10 clicks, update the performance bonus
+    if (newClickCount % 10 === 0) {
+      setIsOoweeProcessing(true);
+      
+      const { success, newBonus, bonusEarned } = await updatePerformanceBonus(currentPlayer.id, newClickCount);
+      
+      if (success && newBonus > 0) {
+        // Update the current player with new bonus
+        const updatedPlayer = { ...currentPlayer, performance_bonus: newBonus };
+        setCurrentPlayer(updatedPlayer);
+        
+        // Also update in the players list
+        setPlayers(prevPlayers => 
+          prevPlayers.map(p => 
+            p.id === currentPlayer.id ? updatedPlayer : p
+          )
+        );
+        
+        // Show exciting bonus earned message
+        if (bonusEarned) {
+          const message = bonusEarned === 1 
+            ? `🎉 Performance bonus achieved: +${bonusEarned}% (Total: ${newBonus}%)`
+            : `🚀 RARE BONUS! +${bonusEarned}% performance bonus! (Total: ${newBonus}%)`;
+          Alert.alert('Dedication Recognized!', message);
+          console.log(`🎉 Performance bonus achieved: +${bonusEarned}%, total: ${newBonus}%`);
+        }
+      }
+      
+      setIsOoweeProcessing(false);
+    }
+  };
+
   // If player has joined a game, show the appropriate view
   if (joinedGame && currentPlayer) {
     // If game is in progress and player has a role, show role card
@@ -165,7 +205,11 @@ export default function PlayerPage() {
             </View>
 
             {/* Role Card */}
-            <RoleCard role={currentPlayer.role} playerName={currentPlayer.name} />
+            <RoleCard 
+              role={currentPlayer.role} 
+              playerName={currentPlayer.name} 
+              performanceBonus={currentPlayer.performance_bonus}
+            />
           </ScrollView>
         </View>
       );
@@ -250,9 +294,18 @@ export default function PlayerPage() {
                       </Text>
                     </View>
                     <View style={styles.playerInfo}>
-                      <Text style={[styles.playerName, player.id === currentPlayer.id && styles.currentPlayerName]}>
-                        {player.name} {player.id === currentPlayer.id && '(You)'}
-                      </Text>
+                      <View style={styles.playerNameRow}>
+                        <Text style={[styles.playerName, player.id === currentPlayer.id && styles.currentPlayerName]}>
+                          {player.name} {player.id === currentPlayer.id && '(You)'}
+                        </Text>
+                        {player.performance_bonus > 0 && (
+                          <View style={styles.performanceBadge}>
+                            <Text style={styles.performanceBadgeText}>
+                              +{player.performance_bonus}% performance bonus
+                            </Text>
+                          </View>
+                        )}
+                      </View>
                       <Text style={styles.playerJoinTime}>
                         Joined {formatTimeAgo(player.joined_at)} ago
                       </Text>
@@ -272,6 +325,29 @@ export default function PlayerPage() {
               The host will start the game when all players have joined. 
               Stay on this screen to receive updates.
             </Text>
+          </View>
+
+          {/* Hidden Oowee Button (Easter Egg) */}
+          <View style={styles.easterEggContainer}>
+            <TouchableOpacity
+              style={[
+                styles.ooweeButton,
+                isOoweeProcessing && styles.ooweeButtonProcessing
+              ]}
+              onPress={handleOoweeClick}
+              disabled={isOoweeProcessing || gameStatus !== 'waiting'}
+            >
+              <Text style={styles.ooweeButtonText}>
+                {isOoweeProcessing ? '...' : 'Oowee'}
+              </Text>
+            </TouchableOpacity>
+            {ooweeClicks > 0 && (
+              <Text style={styles.clickCounter}>
+                {ooweeClicks} click{ooweeClicks !== 1 ? 's' : ''} 
+                {currentPlayer?.performance_bonus ? ` • ${currentPlayer.performance_bonus}% total bonus!` : ''}
+                {(ooweeClicks % 10) !== 0 ? ` • ${10 - (ooweeClicks % 10)} more for next bonus` : ''}
+              </Text>
+            )}
           </View>
         </ScrollView>
       </View>
@@ -787,5 +863,53 @@ const styles = StyleSheet.create({
     color: '#64748b',
     textAlign: 'center',
     letterSpacing: 0.5,
+  },
+  
+  // Easter egg styles
+  easterEggContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
+    paddingBottom: 60,
+  },
+  ooweeButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    opacity: 0.3,
+  },
+  ooweeButtonProcessing: {
+    opacity: 0.1,
+  },
+  ooweeButtonText: {
+    fontSize: 12,
+    fontWeight: '300',
+    color: '#64748b',
+    textAlign: 'center',
+  },
+  clickCounter: {
+    fontSize: 10,
+    fontWeight: '300',
+    color: '#8BB4D8',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  playerNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  performanceBadge: {
+    backgroundColor: '#8BB4D8',
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginLeft: 8,
+  },
+  performanceBadgeText: {
+    fontSize: 10,
+    fontWeight: '300',
+    color: 'white',
   },
 }); 
