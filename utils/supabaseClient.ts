@@ -22,7 +22,7 @@ export interface Database {
         Row: {
           id: string;
           created_at: string;
-          status: 'waiting' | 'in_progress' | 'completed';
+          status: 'waiting' | 'in_progress' | 'completed' | 'abandoned';
           host_id: string;
           current_phase: 'lobby' | 'night' | 'day' | 'voting' | 'end';
           game_code: string;
@@ -30,7 +30,7 @@ export interface Database {
         Insert: {
           id?: string;
           created_at?: string;
-          status?: 'waiting' | 'in_progress' | 'completed';
+          status?: 'waiting' | 'in_progress' | 'completed' | 'abandoned';
           host_id: string;
           current_phase?: 'lobby' | 'night' | 'day' | 'voting' | 'end';
           game_code?: string;
@@ -38,7 +38,7 @@ export interface Database {
         Update: {
           id?: string;
           created_at?: string;
-          status?: 'waiting' | 'in_progress' | 'completed';
+          status?: 'waiting' | 'in_progress' | 'completed' | 'abandoned';
           host_id?: string;
           current_phase?: 'lobby' | 'night' | 'day' | 'voting' | 'end';
           game_code?: string;

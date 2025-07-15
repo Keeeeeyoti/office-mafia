@@ -5,6 +5,9 @@ export async function createGame(hostId: string): Promise<{ game: Game | null; e
   try {
     console.log('🎮 Creating game with hostId:', hostId);
     
+    // Clean up old abandoned games before creating a new one
+    await cleanupAbandonedGames();
+    
     const { data, error } = await supabase
       .from('games')
       .insert([
@@ -49,8 +52,16 @@ export async function joinGame(gameCode: string, playerName: string, isHost: boo
       return { player: null, error: 'Game not found' };
     }
 
-    if (game.status !== 'waiting') {
+    if (game.status === 'in_progress') {
       return { player: null, error: 'Game has already started' };
+    }
+    
+    if (game.status === 'completed') {
+      return { player: null, error: 'Game has already ended' };
+    }
+    
+    if (game.status === 'abandoned') {
+      return { player: null, error: 'Game session has expired' };
     }
 
     // Check if player name already exists in this game
@@ -161,6 +172,46 @@ export function generateHostId(): string {
     const v = c == 'x' ? r : (r & 0x3 | 0x8);
     return v.toString(16);
   });
+}
+
+// Cleanup functions
+export async function cleanupAbandonedGames(): Promise<{ cleaned: number; error: string | null }> {
+  try {
+    console.log('🧹 Cleaning up abandoned games...');
+    
+    const { data, error } = await supabase.rpc('cleanup_abandoned_games');
+    
+    if (error) {
+      console.error('❌ Cleanup failed:', error);
+      return { cleaned: 0, error: error.message };
+    }
+    
+    const cleanedCount = data || 0;
+    console.log(`✅ Cleaned up ${cleanedCount} abandoned games`);
+    return { cleaned: cleanedCount, error: null };
+  } catch (err) {
+    console.error('💥 Unexpected error during cleanup:', err);
+    return { cleaned: 0, error: 'Failed to cleanup abandoned games' };
+  }
+}
+
+export async function cleanupOldGames(): Promise<{ result: string; error: string | null }> {
+  try {
+    console.log('🧹 Running full game cleanup...');
+    
+    const { data, error } = await supabase.rpc('cleanup_old_games');
+    
+    if (error) {
+      console.error('❌ Full cleanup failed:', error);
+      return { result: '', error: error.message };
+    }
+    
+    console.log(`✅ Cleanup result: ${data}`);
+    return { result: data || '', error: null };
+  } catch (err) {
+    console.error('💥 Unexpected error during full cleanup:', err);
+    return { result: '', error: 'Failed to cleanup old games' };
+  }
 }
 
 export function formatTimeAgo(timestamp: string): string {

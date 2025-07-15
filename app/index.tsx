@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import { createClient } from '@supabase/supabase-js';
-import { Building2, Users, UserPlus, Database } from 'lucide-react-native';
+import { Building2, Users, UserPlus, Database, Trash2 } from 'lucide-react-native';
+import { cleanupOldGames } from '../utils/gameHelpers';
 
 export default function HomePage() {
   const [isTestingDB, setIsTestingDB] = useState(false);
+  const [isCleaningUp, setIsCleaningUp] = useState(false);
 
   const handleTestDatabase = async () => {
     if (isTestingDB) return;
@@ -84,6 +86,33 @@ export default function HomePage() {
       Alert.alert('❌ Test Error', `Unexpected error: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setIsTestingDB(false);
+    }
+  };
+
+  const handleCleanupGames = async () => {
+    if (isCleaningUp) return;
+    
+    setIsCleaningUp(true);
+    console.log('🧹 Starting manual game cleanup...');
+    
+    try {
+      const { result, error } = await cleanupOldGames();
+      
+      if (error) {
+        Alert.alert('❌ Cleanup Failed', `Error: ${error}`);
+        return;
+      }
+      
+      Alert.alert(
+        '🧹 Cleanup Complete!', 
+        `${result}\n\nOld waiting games have been marked as abandoned and very old games have been deleted.`
+      );
+      
+    } catch (error) {
+      console.error('❌ Cleanup error:', error);
+      Alert.alert('❌ Cleanup Error', `Unexpected error: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setIsCleaningUp(false);
     }
   };
 
@@ -166,6 +195,22 @@ export default function HomePage() {
             />
             <Text style={styles.debugButtonText}>
               {isTestingDB ? 'Testing Database...' : 'Database Connection Test'}
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.debugButton, { marginTop: 12 }]}
+            onPress={handleCleanupGames}
+            disabled={isCleaningUp}
+          >
+            <Trash2 
+              size={16} 
+              color="#dc2626"
+              strokeWidth={1.5}
+              style={{ marginRight: 12 }}
+            />
+            <Text style={[styles.debugButtonText, { color: '#dc2626' }]}>
+              {isCleaningUp ? 'Cleaning Up...' : 'Cleanup Old Games (15+ min)'}
             </Text>
           </TouchableOpacity>
         </View>
