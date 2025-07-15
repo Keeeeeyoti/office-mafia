@@ -311,7 +311,7 @@ export default function PlayerPage() {
           <Text style={styles.inputLabel}>Display Name</Text>
           <TextInput
             style={styles.input}
-            placeholder="Enter your full name(e.g. Scar Doginton)"
+            placeholder="Enter your name(e.g. Scar Doginton)"
             placeholderTextColor="#94a3b8"
             value={playerName}
             onChangeText={setPlayerName}
