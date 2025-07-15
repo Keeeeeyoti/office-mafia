@@ -298,7 +298,7 @@ export default function PlayerPage() {
           <Text style={styles.inputLabel}>Session Identifier</Text>
           <TextInput
             style={styles.input}
-            placeholder="Enter session ID (e.g., ABC123)"
+            placeholder="Enter session ID (e.g., GSI076)"
             placeholderTextColor="#94a3b8"
             value={gameId}
             onChangeText={setGameId}
@@ -311,7 +311,7 @@ export default function PlayerPage() {
           <Text style={styles.inputLabel}>Display Name</Text>
           <TextInput
             style={styles.input}
-            placeholder="Enter your full name"
+            placeholder="Enter your full name(e.g. Scar Doginton)"
             placeholderTextColor="#94a3b8"
             value={playerName}
             onChangeText={setPlayerName}
