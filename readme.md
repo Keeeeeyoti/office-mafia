@@ -14,32 +14,37 @@
     - **Hosting**: Vercel
     - **Voice**: AI-generated using ElevenLabs or similar
 
+### 🚀 **Beta Version Focus**
+**Due to time constraints, we're focusing on a simplified but complete beta:**
+- ✅ **Completed**: Game creation, QR joining, real-time lobby
+- 🎯 **Beta Goal**: Role assignment + moderator scripts + basic elimination
+- 📱 **Player Experience**: Join → See role → Wait for host → Victory/defeat screen  
+- 🎤 **Host Experience**: Create → Start → Read scripts → Mark eliminations → End game
+- 🔮 **Post-Beta**: Automated gameplay, audio, complex mechanics
+
 ---
 git 
-## 🎮 Game Flow & Features
+## 🎮 Game Flow & Features (Beta Version)
 
-### 👤 Host Flow
+### 👤 Host Flow (Moderator)
 
 - Host visits `/host` route and creates a game session
 - QR code is generated for players to join
 - Host sees the lobby view and player join status
 - Host can press **Start Game** when ready
-- Host's device will be playing the voiceover prompts (moderator audio) for everyone to follow
-- Host inputs:
-    - Voting results (who gets voted)
-    - 
+- **Beta: Host becomes the moderator (doesn't participate)**
+- Host reads funny office-themed scripts provided by the app
+- Host manually marks players as "fired" (eliminated)
+- Host ends the game when ready
 
-### 👥 Player Flow
+### 👥 Player Flow (Simplified Beta)
 
 - Player scans QR code and joins via `/player` route
 - Player enters their name and is added to session
-- After game start, player is shown their role privately
-- During night:
-    - If player has a special role, they receive instructions
-    - Otherwise screen says "close your eyes"
-- During day:
-    - Player sees daily updates
-    - No player input required unless role demands
+- After game start, player is shown their role privately with office theme
+- **Beta: Player waits for moderator to guide the game**
+- At game end: Player sees victory/defeat screen based on team outcome
+- **No complex interactions - just role reveal and final result**
 
 ### 🧑‍💼 Role Types
 
@@ -48,32 +53,36 @@ git
 - **Audit** (cop): Can investigate a player each night to reveal if they're rogue
 - **HR** (doctor): Can protect a player from elimination each night
 
-### 🔊 Voiceover Handling
+### 🔊 Voiceover Handling (Post-Beta Feature)
 
-- Moderator audio (intro, night/day transition, results) plays **only from host's device**
-- Audio files are hosted in Supabase Storage and fetched as needed
-- Voiceovers include:
-    - Game intro
-    - "Everyone close your eyes"
-    - Role prompts (e.g. "Rogue employee, open your eyes...")
-    - Announce day and death results
-    - Announce voting phase and ask for host input
-    - End game: win/lose announcements
+- **Beta: Text scripts only** - Host reads provided office-themed scripts aloud
+- **Future: Automated audio** - AI-generated voiceovers will play from host device
+- Post-beta voiceovers will include:
+    - Game intro with office humor
+    - Role prompts: "Rogue employees, open your eyes..."
+    - Elimination announcements: "John has been fired for productivity issues"
+    - End game: "The employees have saved the company!" / "Rogue employees have taken over!"
 
-### 📋 Core Functional Requirements
+### 📋 Core Functional Requirements (Beta Version)
 
-- Create/join sessions via Supabase
-- Host creates a game session
-- QR code is generated for players to join
-- Players enter names and join the session
-- Host sees player list and starts the game
-- Assign roles randomly from player pool, using a logic to determine the number of each roles based on the number of players
-- Handle game phase transitions (lobby → night → day → end)
-- Private role visibility (per device)
-- Host-only voiceover playback
-- Deaths and events are announced by voiceover
-- Host inputs vote results manually for each day
-- Trigger game end condition
+- ✅ Create/join sessions via Supabase
+- ✅ Host creates a game session
+- ✅ QR code is generated for players to join
+- ✅ Players enter names and join the session
+- ✅ Host sees player list and starts the game
+- 🎯 Assign roles randomly from player pool with office themes
+- 🎯 Private role visibility (per device) with corporate descriptions
+- 🎯 Host moderator dashboard with player status (employed/fired)
+- 🎯 Text-based scripts for host to read aloud
+- 🎯 Manual elimination system (host marks players as "fired")
+- 🎯 Victory/defeat screens for players
+- 🎯 Simple game end trigger
+
+**Post-Beta Features:**
+- Automated game phase transitions
+- Audio voiceover playback
+- Complex voting systems
+- Advanced role abilities
 
 ---
 
@@ -126,7 +135,7 @@ git
 
 ---
 
-## 🧑‍💻 **Phase 2: Host Game Flow (Lobby to Start)**
+## 🧑‍💻 **Phase 2: Host Game Flow (Lobby to Start)(COMPLETED)**
 
 **Goal:** Enable hosts to create sessions and see players joining.
 
@@ -155,56 +164,74 @@ git
     - [ ]  Store role mapping in Supabase (`roles` table or column in `players`)
 - [ ]  Player screen logic:
     - [ ]  Once game starts → fetch and show role privately
-    - [ ]  Display custom role UI
-- [ ]  Host dashboard updates to “Game in Progress”
+    - [ ]  Display custom role UI with office-themed descriptions
+- [ ]  Host dashboard updates to "Game in Progress"
 
 ---
 
-## 🌗 **Phase 4: Night/Day Cycle + Voiceover (Host Only)**
+## 🎯 **Phase 3.5: Beta Version Completion (PRIORITY FOR DELIVERY)**
 
-**Goal:** Allow host to progress the game with synchronized voiceover prompts.
+**Goal:** Complete the beta version with moderator scripts and basic game state tracking.
 
 ### Tasks
 
-- [ ]  Host UI controls:
-    - [ ]  “Begin Night”, “Rogues Wake Up”, “Audit Wake Up”, etc.
-    - [ ]  “Begin Day”, “Announce Votes”, “End Game”
-- [ ]  Upload voiceover files to Supabase Storage
-- [ ]  Implement host-only audio playback:
-    - [ ]  Ensure only host’s browser plays audio
-- [ ]  Build day/night phase display logic
+- [ ]  **Moderator Script System:**
+    - [ ]  Create collection of funny office-themed mafia scripts
+    - [ ]  Host UI displays scripts for each game phase (intro, day phases, eliminations)
+    - [ ]  Scripts include corporate humor: "The coffee machine has been sabotaged!"
+- [ ]  **Host Dashboard (Moderator View):**
+    - [ ]  Show player list with employed/fired status (alive/dead)
+    - [ ]  Simple buttons to mark players as "fired" (eliminated)
+    - [ ]  Manual game progression controls
+    - [ ]  Game end trigger when ready
+- [ ]  **Player End Game:**
+    - [ ]  Victory/defeat screen based on team outcome
+    - [ ]  Display final team results: "Employees Win!" or "Rogue Employees Win!"
+- [ ]  **Beta Game Flow:**
+    - [ ]  Start → Role Reveal → Host reads scripts → Mark eliminations → End game
+    - [ ]  No complex automation - host controls everything manually
 
 ---
 
-## ⚰️ **Phase 5: Voting, Deaths & Game Logic**
+## 🌗 **Phase 4: Advanced Game Mechanics (POST-BETA DELIVERY)**
 
-**Goal:** Let host input votes, eliminate players, and check win conditions.
+**Goal:** Add automated game flow and complex mechanics after beta feedback.
 
-### Tasks
+### Tasks (Future Development)
 
-- [ ]  Host UI:
-    - [ ]  Input: Who was voted out?
-    - [ ]  Record death in DB
-- [ ]  Game logic engine:
-    - [ ]  Check win condition after each death (e.g. mafia = citizens)
-    - [ ]  Handle HR saves and Audit investigations
-- [ ]  Voiceover to announce:
-    - [ ]  “Player X has been eliminated”
-    - [ ]  “Game Over: Rogue Employees win!”
+- [ ]  Automated night/day cycle progression
+- [ ]  Player action inputs (voting, special abilities)
+- [ ]  Automated win condition detection
+- [ ]  Audio/voiceover integration with ElevenLabs
+- [ ]  Advanced role abilities (HR saves, Audit investigations)
 
 ---
 
-## 🎉 **Phase 6: End Game & Polishing**
+## ⚰️ **Phase 5: Enhanced Features (POST-BETA)**
 
-**Goal:** Wrap up game experience and prepare for internal testing/demo.
+**Goal:** Polish and advanced features based on beta testing feedback.
 
-### Tasks
+### Tasks (Future Development)
 
-- [ ]  Show victory screen to all players
-- [ ]  Reveal full role list at the end
-- [ ]  Add “Play Again” or “Return to Lobby”
-- [ ]  Polish UI styling (mobile-first)
-- [ ]  Light error handling (e.g. reconnect, game not found)
+- [ ]  Real-time voting system
+- [ ]  Game history and statistics tracking
+- [ ]  Multiple game modes and variants
+- [ ]  Enhanced mobile UI/UX improvements
+- [ ]  Reconnection and error handling
+
+---
+
+## 🎉 **Phase 6: Production Polish (POST-BETA)**
+
+**Goal:** Production-ready features and full deployment optimization.
+
+### Tasks (Future Development)
+
+- [ ]  User authentication and player profiles
+- [ ]  Game replays and detailed logs
+- [ ]  Admin dashboard for game management
+- [ ]  Performance optimization and scaling
+- [ ]  Comprehensive error handling and monitoring
 
 ---
 
