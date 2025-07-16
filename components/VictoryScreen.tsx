@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Trophy, Briefcase, XCircle } from 'lucide-react-native';
 
 interface VictoryScreenProps {
@@ -14,7 +14,11 @@ export default function VictoryScreen({ winner, playerRole, onPlayAgain }: Victo
     (winner === 'rogue' && playerRole === 'rogue');
 
   return (
-    <View style={styles.container}>
+    <ScrollView 
+      style={styles.container}
+      contentContainerStyle={styles.scrollContent}
+      showsVerticalScrollIndicator={false}
+    >
       <View style={styles.card}>
         {/* Result Icon */}
         <View style={[
@@ -94,7 +98,7 @@ export default function VictoryScreen({ winner, playerRole, onPlayAgain }: Victo
           *This has been a Goldman Sachs team-building exercise
         </Text>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -102,9 +106,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8fafc',
+  },
+  scrollContent: {
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
+    minHeight: '100%',
   },
   card: {
     backgroundColor: '#ffffff',
