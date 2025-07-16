@@ -414,4 +414,76 @@ export async function updatePerformanceBonus(playerId: string, clicks: number): 
     console.error('💥 Unexpected error updating performance bonus:', err);
     return { success: false, error: 'Failed to update performance bonus', newBonus: 0 };
   }
+}
+
+// Player elimination system
+export async function eliminatePlayer(playerId: string): Promise<{ success: boolean; error: string | null }> {
+  try {
+    console.log(`🔥 Eliminating player ${playerId}`);
+    
+    const { error } = await supabase
+      .from('players')
+      .update({ is_alive: false })
+      .eq('id', playerId);
+    
+    if (error) {
+      console.error('❌ Failed to eliminate player:', error);
+      return { success: false, error: error.message };
+    }
+    
+    console.log('✅ Player eliminated successfully');
+    return { success: true, error: null };
+    
+  } catch (err) {
+    console.error('💥 Unexpected error eliminating player:', err);
+    return { success: false, error: 'Failed to eliminate player' };
+  }
+}
+
+// Revive player (undo elimination)
+export async function revivePlayer(playerId: string): Promise<{ success: boolean; error: string | null }> {
+  try {
+    console.log(`💊 Reviving player ${playerId}`);
+    
+    const { error } = await supabase
+      .from('players')
+      .update({ is_alive: true })
+      .eq('id', playerId);
+    
+    if (error) {
+      console.error('❌ Failed to revive player:', error);
+      return { success: false, error: error.message };
+    }
+    
+    console.log('✅ Player revived successfully');
+    return { success: true, error: null };
+    
+  } catch (err) {
+    console.error('💥 Unexpected error reviving player:', err);
+    return { success: false, error: 'Failed to revive player' };
+  }
+}
+
+// Update game phase
+export async function updateGamePhase(gameId: string, phase: 'lobby' | 'night' | 'day' | 'voting' | 'end'): Promise<{ success: boolean; error: string | null }> {
+  try {
+    console.log(`🎮 Updating game ${gameId} to phase: ${phase}`);
+    
+    const { error } = await supabase
+      .from('games')
+      .update({ current_phase: phase })
+      .eq('id', gameId);
+    
+    if (error) {
+      console.error('❌ Failed to update game phase:', error);
+      return { success: false, error: error.message };
+    }
+    
+    console.log('✅ Game phase updated successfully');
+    return { success: true, error: null };
+    
+  } catch (err) {
+    console.error('💥 Unexpected error updating game phase:', err);
+    return { success: false, error: 'Failed to update game phase' };
+  }
 } 

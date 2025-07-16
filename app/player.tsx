@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, Camera, Smartphone, User, Users, Clock } from 'lucide-react-native';
+import { ArrowLeft, Camera, Smartphone, User, Users, Clock, XCircle } from 'lucide-react-native';
 import { supabase, Game, Player } from '../utils/supabaseClient';
 import { joinGame, getGamePlayers, formatTimeAgo, updatePerformanceBonus } from '../utils/gameHelpers';
+import { determineGameWinner } from '../utils/moderatorScripts';
 import RoleCard from '../components/RoleCard';
+import VictoryScreen from '../components/VictoryScreen';
 
 export default function PlayerPage() {
   const { gameId: urlGameId } = useLocalSearchParams();
@@ -17,6 +19,7 @@ export default function PlayerPage() {
   const [gameStatus, setGameStatus] = useState<'waiting' | 'in_progress' | 'completed' | 'abandoned'>('waiting');
   const [ooweeClicks, setOoweeClicks] = useState(0);
   const [isOoweeProcessing, setIsOoweeProcessing] = useState(false);
+  const [gameWinner, setGameWinner] = useState<'employees' | 'rogue' | null>(null);
 
   useEffect(() => {
     // If we have URL parameters, show them in the form
@@ -28,6 +31,8 @@ export default function PlayerPage() {
   useEffect(() => {
     if (!joinedGame || !currentPlayer) return;
 
+    console.log('🔌 Setting up real-time subscriptions for player:', currentPlayer.name, 'in game:', joinedGame.game_code);
+
     // Subscribe to real-time game updates
     const gameSubscription = supabase
       .channel(`game-${joinedGame.id}`)
@@ -37,10 +42,12 @@ export default function PlayerPage() {
         table: 'games',
         filter: `id=eq.${joinedGame.id}`,
       }, async (payload) => {
+        console.log('🎮 Game update received:', payload.new);
         const updatedGame = payload.new as Game;
         setGameStatus(updatedGame.status);
         
         if (updatedGame.status === 'in_progress') {
+          console.log('🚀 Game started! Showing alert and refreshing player data');
           Alert.alert('Game Started!', 'The game has begun. You will see your role now.');
           
           // Refresh current player to get assigned role
@@ -51,11 +58,19 @@ export default function PlayerPage() {
             .single();
           
           if (updatedPlayer) {
+            console.log('✅ Player data refreshed:', updatedPlayer);
             setCurrentPlayer(updatedPlayer);
           }
+        } else if (updatedGame.status === 'completed') {
+          // Game has ended, determine winner
+          const { players: finalPlayers } = await getGamePlayers(joinedGame.id);
+          const winner = determineGameWinner(finalPlayers);
+          setGameWinner(winner);
         }
       })
-      .subscribe();
+      .subscribe((status) => {
+        console.log('🎮 Game subscription status:', status);
+      });
 
     // Subscribe to real-time player updates
     const playersSubscription = supabase
@@ -66,13 +81,32 @@ export default function PlayerPage() {
         table: 'players',
         filter: `game_id=eq.${joinedGame.id}`,
       }, async (payload) => {
+        console.log('👥 Player update received:', payload.eventType, payload.new || payload.old);
+        
         // Refresh player list when changes occur
         const { players: updatedPlayers } = await getGamePlayers(joinedGame.id);
+        console.log('📋 Updated players list:', updatedPlayers.length, 'players');
         setPlayers(updatedPlayers);
+        
+        // Update current player if their status changed
+        if (currentPlayer) {
+          const updatedCurrentPlayer = updatedPlayers.find(p => p.id === currentPlayer.id);
+          if (updatedCurrentPlayer) {
+            console.log('🔄 Updating current player status:', {
+              name: updatedCurrentPlayer.name,
+              is_alive: updatedCurrentPlayer.is_alive,
+              role: updatedCurrentPlayer.role
+            });
+            setCurrentPlayer(updatedCurrentPlayer);
+          }
+        }
       })
-      .subscribe();
+      .subscribe((status) => {
+        console.log('👥 Players subscription status:', status);
+      });
 
     return () => {
+      console.log('🔌 Cleaning up subscriptions for player:', currentPlayer.name);
       gameSubscription.unsubscribe();
       playersSubscription.unsubscribe();
     };
@@ -167,16 +201,39 @@ export default function PlayerPage() {
         // Show exciting bonus earned message
         if (bonusEarned) {
           const message = bonusEarned === 1 
-            ? `🎉 Performance bonus achieved: +${bonusEarned}% (Total: ${newBonus}%)`
-            : `🚀 RARE BONUS! +${bonusEarned}% performance bonus! (Total: ${newBonus}%)`;
+            ? `Performance bonus achieved: +${bonusEarned}% (Total: ${newBonus}%)`
+            : `RARE BONUS! +${bonusEarned}% performance bonus! (Total: ${newBonus}%)`;
           Alert.alert('Dedication Recognized!', message);
-          console.log(`🎉 Performance bonus achieved: +${bonusEarned}%, total: ${newBonus}%`);
+          console.log(`Performance bonus achieved: +${bonusEarned}%, total: ${newBonus}%`);
         }
       }
       
       setIsOoweeProcessing(false);
     }
   };
+
+  const handlePlayAgain = () => {
+    // Reset everything and go back to join screen
+    setJoinedGame(null);
+    setCurrentPlayer(null);
+    setPlayers([]);
+    setGameStatus('waiting');
+    setGameWinner(null);
+    setOoweeClicks(0);
+    setGameId('');
+    setPlayerName('');
+  };
+
+  // Show victory screen if game is completed
+  if (gameStatus === 'completed' && gameWinner && currentPlayer?.role) {
+    return (
+      <VictoryScreen 
+        winner={gameWinner}
+        playerRole={currentPlayer.role}
+        onPlayAgain={handlePlayAgain}
+      />
+    );
+  }
 
   // If player has joined a game, show the appropriate view
   if (joinedGame && currentPlayer) {
@@ -210,6 +267,27 @@ export default function PlayerPage() {
               playerName={currentPlayer.name} 
               performanceBonus={currentPlayer.performance_bonus}
             />
+
+            {/* Elimination Status */}
+            {!currentPlayer.is_alive && (
+              <View style={styles.eliminationOverlay}>
+                <View style={styles.eliminationCard}>
+                  <View style={styles.eliminationIconContainer}>
+                    <XCircle size={48} color="#dc2626" strokeWidth={1.5} />
+                  </View>
+                  <Text style={styles.eliminationTitle}>You Have Been Eliminated</Text>
+                  <Text style={styles.eliminationMessage}>
+                    You have been permanently reassigned to external opportunities. 
+                    Your performance review indicated that your services are no longer 
+                    required by Goldman Sachs.
+                  </Text>
+                  <Text style={styles.eliminationNote}>
+                    You may continue to observe the game, but can no longer participate 
+                    in company decisions.
+                  </Text>
+                </View>
+              </View>
+            )}
           </ScrollView>
         </View>
       );
@@ -325,6 +403,46 @@ export default function PlayerPage() {
               The host will start the game when all players have joined. 
               Stay on this screen to receive updates.
             </Text>
+            
+            {/* Debug Info */}
+            <View style={styles.debugContainer}>
+              <Text style={styles.debugTitle}>Debug Info:</Text>
+              <Text style={styles.debugText}>Game Status: {gameStatus}</Text>
+              <Text style={styles.debugText}>Game ID: {joinedGame?.id}</Text>
+              <Text style={styles.debugText}>Player Role: {currentPlayer?.role || 'None'}</Text>
+              <TouchableOpacity 
+                style={styles.refreshButton}
+                onPress={async () => {
+                  if (joinedGame) {
+                    // Manually refresh game status
+                    const { data: gameData } = await supabase
+                      .from('games')
+                      .select('*')
+                      .eq('id', joinedGame.id)
+                      .single();
+                    
+                    if (gameData) {
+                      setGameStatus(gameData.status);
+                      console.log('🔄 Manual refresh - Game status:', gameData.status);
+                    }
+                    
+                    // Refresh player data
+                    const { data: playerData } = await supabase
+                      .from('players')
+                      .select('*')
+                      .eq('id', currentPlayer?.id)
+                      .single();
+                    
+                    if (playerData) {
+                      setCurrentPlayer(playerData);
+                      console.log('🔄 Manual refresh - Player role:', playerData.role);
+                    }
+                  }
+                }}
+              >
+                <Text style={styles.refreshButtonText}>Refresh Status</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Hidden Oowee Button (Easter Egg) */}
@@ -911,5 +1029,91 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '300',
     color: 'white',
+  },
+  
+  // Elimination overlay styles
+  eliminationOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  eliminationCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 32,
+    alignItems: 'center',
+    maxWidth: 350,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 24,
+    elevation: 16,
+  },
+  eliminationIconContainer: {
+    marginBottom: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  eliminationTitle: {
+    fontSize: 24,
+    fontWeight: '300',
+    color: '#dc2626',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  eliminationMessage: {
+    fontSize: 16,
+    fontWeight: '300',
+    color: '#374151',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 16,
+  },
+  eliminationNote: {
+    fontSize: 14,
+    fontWeight: '300',
+    color: '#8BB4D8',
+    textAlign: 'center',
+    lineHeight: 20,
+    fontStyle: 'italic',
+  },
+  debugContainer: {
+    marginTop: 24,
+    padding: 16,
+    backgroundColor: '#f1f5f9',
+    borderRadius: 12,
+    width: '100%',
+    alignItems: 'center',
+  },
+  debugTitle: {
+    fontSize: 14,
+    fontWeight: '300',
+    color: '#475569',
+    marginBottom: 8,
+  },
+  debugText: {
+    fontSize: 12,
+    fontWeight: '300',
+    color: '#64748b',
+    marginBottom: 4,
+  },
+  refreshButton: {
+    backgroundColor: '#1e293b',
+    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#475569',
+  },
+  refreshButtonText: {
+    fontSize: 12,
+    fontWeight: '300',
+    color: '#ffffff',
   },
 }); 

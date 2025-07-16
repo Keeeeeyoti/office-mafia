@@ -88,7 +88,7 @@ export default function RoleCard({ role, playerName, performanceBonus }: RoleCar
         <View style={styles.headerText}>
           <View style={styles.greetingRow}>
             <Text style={styles.greeting}>Welcome, {playerName}</Text>
-            {performanceBonus && performanceBonus > 0 && (
+            {(performanceBonus || 0) > 0 && (
               <View style={styles.bonusBadge}>
                 <Text style={styles.bonusBadgeText}>+{performanceBonus}% performance bonus</Text>
               </View>

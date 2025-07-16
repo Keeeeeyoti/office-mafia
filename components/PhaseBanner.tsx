@@ -12,7 +12,7 @@ export function PhaseBanner({ phase, countdown }: PhaseBannerProps) {
 
   return (
     <View style={[styles.container, { backgroundColor: phaseInfo.color }]}>
-      <Text style={styles.phaseIcon}>{phaseInfo.icon}</Text>
+      {phaseInfo.icon && <Text style={styles.phaseIcon}>{phaseInfo.icon}</Text>}
       <Text style={styles.phaseName}>{phaseInfo.name}</Text>
       <Text style={styles.phaseDescription}>{phaseInfo.description}</Text>
       {countdown && countdown > 0 && (
@@ -27,42 +27,42 @@ function getPhaseInfo(phase: GamePhase) {
     case 'lobby':
       return {
         name: 'Lobby',
-        icon: '🏢',
+        icon: '',
         description: 'Waiting for players to join...',
         color: '#374151',
       };
     case 'night':
       return {
         name: 'Night Phase',
-        icon: '🌙',
+        icon: '',
         description: 'Special roles are taking action...',
         color: '#1f2937',
       };
     case 'day':
       return {
         name: 'Day Phase',
-        icon: '☀️',
+        icon: '',
         description: 'Discuss and decide who to vote out',
         color: '#fbbf24',
       };
     case 'voting':
       return {
         name: 'Voting Phase',
-        icon: '🗳️',
+        icon: '',
         description: 'Time to vote for elimination',
         color: '#dc2626',
       };
     case 'end':
       return {
         name: 'Game Over',
-        icon: '🏆',
+        icon: '',
         description: 'The game has ended',
         color: '#7c3aed',
       };
     default:
       return {
         name: 'Unknown Phase',
-        icon: '❓',
+        icon: '',
         description: 'Unknown game phase',
         color: '#6b7280',
       };

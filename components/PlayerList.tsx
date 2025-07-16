@@ -24,7 +24,7 @@ export function PlayerList({ players, showRoles = false }: PlayerListProps) {
         <Text style={styles.playerRole}>{getRoleDisplay(item.role)}</Text>
       )}
       {!item.is_alive && (
-        <Text style={styles.deadLabel}>💀 Eliminated</Text>
+        <Text style={styles.deadLabel}>Eliminated</Text>
       )}
     </View>
   );
