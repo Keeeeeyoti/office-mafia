@@ -29,17 +29,23 @@ Remember - this is a team-building exercise, so please maintain professional dec
   {
     id: 'night_phase',
     title: 'After Hours Operations',
-    content: `The office has gone dark. Security cameras are offline for "routine maintenance."
+    content: `Nice work again today. 
 
-🌙 **NIGHT PHASE** - All employees close your eyes for mandatory rest period.
+All end-of-day reports are in, and employees have officially logged off.
 
-**Rogue Employees** - Please open your eyes and discuss your sabotage plans quietly. Choose one employee to "reassign to different opportunities" tonight.
+Everyone please close your eyes.
+
+Everyone has gone home and enjoying some well derserved downtime ... except for 
+
+**Rogue Employees** - Please open your eyes and discuss your sabotage plans silently. Choose one employee to sabotage tonight.
+
+Some employees just can't get enough of work. So  they are still working late at home.
 
 **Audit Department** - Choose one employee to investigate their productivity metrics.
 
 **HR Department** - Choose one employee to provide "performance protection" for tonight.
 
-Take your time to make strategic decisions that will benefit the company... or destroy it.`,
+Alright... the night is over. `,
     phase: 'night'
   },
 
@@ -47,18 +53,19 @@ Take your time to make strategic decisions that will benefit the company... or d
   {
     id: 'day_phase',
     title: 'Morning Standup Meeting',
-    content: `☀️ Good morning, team! Time for our daily standup.
+    content: `Good morning everyone. Happy Monday/Tuesday/Wednesday.... 
 
-The coffee machine has been sabotaged overnight! Someone has been eliminated due to "performance issues" and will no longer be contributing to our quarterly targets.
+Just got one announcement from leadership to share... It appears one of our valuable employee has been let go 
 
-**DAY PHASE** - Everyone open your eyes. Let's discuss who might be responsible for this corporate espionage.
+Official reason: “Cultural misalignment,” “performance concerns,” “budget cuts,” “failure to meet vague KPIs,” 
 
-- Share your observations from yesterday's productivity metrics
-- Discuss any suspicious after-hours activities  
-- Form alliances to protect company assets
-- Identify potential threats to our organizational structure
+“refused to attend the 8am sync,” or possibly just “bad vibes"* 
 
-Remember: we need to eliminate all rogue elements to save our company!`,
+Now, I don’t know about you, but something feels off.
+
+[PLAYER NAME] was loyal, productive, and only cried at work twice last week. 
+
+There must be someone among us sabotaging them. So i will open the discussion to the team. `,
     phase: 'day'
   },
 
