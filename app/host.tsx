@@ -58,11 +58,25 @@ export default function HostPage() {
   useEffect(() => {
     if (!game) return;
 
-    console.log('🔌 HOST: Setting up real-time subscriptions for game:', game.game_code);
+    console.log('🔌 HOST: Setting up real-time subscriptions for game:', game.game_code, 'ID:', game.id);
+
+    // Load initial players immediately
+    const loadInitialPlayers = async () => {
+      console.log('📋 HOST: Loading initial players...');
+      const { players: initialPlayers } = await getGamePlayers(game.id);
+      console.log('📋 HOST: Initial players loaded:', initialPlayers.map(p => ({
+        name: p.name,
+        id: p.id,
+        joined_at: p.joined_at
+      })));
+      setPlayers(initialPlayers);
+    };
+    
+    loadInitialPlayers();
 
     // Subscribe to real-time player updates
     const playersSubscription = supabase
-      .channel(`players-${game.id}`)
+      .channel(`host-players-${game.id}`)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
@@ -80,8 +94,16 @@ export default function HostPage() {
         })));
         setPlayers(updatedPlayers);
       })
-      .subscribe((status) => {
+      .subscribe((status, err) => {
         console.log('👥 HOST: Players subscription status:', status);
+        if (err) {
+          console.error('❌ HOST: Subscription error:', err);
+        }
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ HOST: Successfully subscribed to player updates');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('❌ HOST: Channel error - real-time updates may not work. Use manual refresh.');
+        }
       });
 
     return () => {
@@ -178,7 +200,8 @@ export default function HostPage() {
         })));
         setPlayers(updatedPlayers);
         
-        alert(`${player.name} has been eliminated from the game.`);
+        // Show elimination script
+        showEliminationScript(player);
         checkGameEnd();
       } else {
         console.log('❌ Failed to eliminate player:', error);
@@ -186,6 +209,31 @@ export default function HostPage() {
       }
     } else {
       console.log('❌ Elimination cancelled for:', player.name);
+    }
+  };
+
+  const showEliminationScript = (eliminatedPlayer: Player) => {
+    // Get the elimination script and customize it
+    const eliminationScript = getScriptByPhase('elimination');
+    if (eliminationScript) {
+      // Substitute player name and role in the script
+      const roleNames = {
+        'employee': 'Employee',
+        'rogue': 'Rogue Employee', 
+        'audit': 'Audit Department',
+        'hr': 'HR Department'
+      };
+      
+      const customizedScript = {
+        ...eliminationScript,
+        content: eliminationScript.content
+          .replace('[PLAYER NAME]', eliminatedPlayer.name)
+          .replace('[ROLE]', roleNames[eliminatedPlayer.role as keyof typeof roleNames] || eliminatedPlayer.role || 'Unknown')
+      };
+      
+      // Set this as the current script to display
+      setCurrentScript(customizedScript);
+      console.log('📋 Showing elimination script for:', eliminatedPlayer.name);
     }
   };
 
@@ -211,15 +259,18 @@ export default function HostPage() {
     }
   };
 
-  const changePhase = async (newPhase: 'intro' | 'night' | 'day') => {
+  const changePhase = async (newPhase: 'intro' | 'night' | 'day' | 'elimination') => {
     if (!game) return;
     
-    setCurrentPhase(newPhase);
+    // Only update current phase for game phases, not elimination script
+    if (newPhase !== 'elimination') {
+      setCurrentPhase(newPhase as 'intro' | 'night' | 'day');
+      // Update database phase
+      await updateGamePhase(game.id, newPhase === 'intro' ? 'lobby' : newPhase as 'night' | 'day');
+    }
+    
     const script = getScriptByPhase(newPhase);
     setCurrentScript(script);
-    
-    // Update database phase
-    await updateGamePhase(game.id, newPhase === 'intro' ? 'lobby' : newPhase);
   };
 
   const checkGameEnd = () => {
@@ -578,16 +629,34 @@ export default function HostPage() {
 
           {/* Moderator Script System */}
           {currentScript && (
-            <View style={styles.scriptCard}>
+            <View style={[
+              styles.scriptCard,
+              currentScript.phase === 'elimination' && styles.eliminationScriptCard
+            ]}>
               <View style={styles.scriptHeader}>
                 <Text style={styles.scriptTitle}>{currentScript.title}</Text>
-                <View style={styles.phaseIndicator}>
-                  <Text style={styles.phaseText}>{currentPhase.toUpperCase()}</Text>
+                <View style={[
+                  styles.phaseIndicator,
+                  currentScript.phase === 'elimination' && styles.eliminationPhaseIndicator
+                ]}>
+                  <Text style={[
+                    styles.phaseText,
+                    currentScript.phase === 'elimination' && styles.eliminationPhaseText
+                  ]}>
+                    {currentScript.phase === 'elimination' ? 'ELIMINATION' : currentPhase.toUpperCase()}
+                  </Text>
                 </View>
               </View>
               <ScrollView style={styles.scriptContent} showsVerticalScrollIndicator={false}>
                 <Text style={styles.scriptText}>{currentScript.content}</Text>
               </ScrollView>
+              {currentScript.phase === 'elimination' && (
+                <View style={styles.eliminationNote}>
+                  <Text style={styles.eliminationNoteText}>
+                    💡 This script is automatically shown when you eliminate a player, or you can access it manually here.
+                  </Text>
+                </View>
+              )}
             </View>
           )}
 
@@ -620,6 +689,20 @@ export default function HostPage() {
                 >
                   <Text style={[styles.phaseButtonText, currentPhase === 'day' && styles.phaseButtonTextActive]}>
                     Day Phase
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.phaseButton}
+                  onPress={() => {
+                    // Show generic elimination script template
+                    const eliminationScript = getScriptByPhase('elimination');
+                    if (eliminationScript) {
+                      setCurrentScript(eliminationScript);
+                    }
+                  }}
+                >
+                  <Text style={styles.phaseButtonText}>
+                    Elimination Script
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -702,6 +785,23 @@ export default function HostPage() {
           <View style={styles.participantsBadge}>
             <Text style={styles.participantsBadgeText}>{players.length}</Text>
           </View>
+          <TouchableOpacity 
+            style={styles.refreshButton}
+            onPress={async () => {
+              if (game) {
+                console.log('🔄 HOST LOBBY: Manual refresh requested');
+                const { players: refreshedPlayers } = await getGamePlayers(game.id);
+                console.log('🔄 HOST LOBBY: Manual refresh result:', refreshedPlayers.map(p => ({
+                  name: p.name,
+                  id: p.id,
+                  joined_at: p.joined_at
+                })));
+                setPlayers(refreshedPlayers);
+              }
+            }}
+          >
+            <Text style={styles.refreshButtonText}>Refresh</Text>
+          </TouchableOpacity>
         </View>
         
         <View style={styles.participantsList}>
@@ -740,6 +840,30 @@ export default function HostPage() {
             ))
           )}
         </View>
+      </View>
+
+      {/* Debug Panel for Host */}
+      <View style={styles.debugContainer}>
+        <Text style={styles.debugTitle}>Host Debug Info:</Text>
+        <Text style={styles.debugText}>Game ID: {game?.id}</Text>
+        <Text style={styles.debugText}>Game Code: {game?.game_code}</Text>
+        <Text style={styles.debugText}>Players in State: {players.length}</Text>
+        <TouchableOpacity 
+          style={styles.refreshButton}
+          onPress={async () => {
+            if (game) {
+              console.log('🔄 HOST DEBUG: Manual refresh requested');
+              const { players: refreshedPlayers } = await getGamePlayers(game.id);
+              console.log('🔄 HOST DEBUG: Database players found:', refreshedPlayers.length);
+              refreshedPlayers.forEach((player, index) => {
+                console.log(`Player ${index + 1}: ${player.name} (${player.id})`);
+              });
+              setPlayers(refreshedPlayers);
+            }
+          }}
+        >
+          <Text style={styles.refreshButtonText}>Force Refresh Players</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Start Session Button */}
@@ -1595,5 +1719,50 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '300',
     color: '#ffffff',
+  },
+  // Elimination script styles
+  eliminationScriptCard: {
+    borderColor: '#dc2626',
+    borderWidth: 2,
+  },
+  eliminationPhaseIndicator: {
+    backgroundColor: '#dc2626',
+  },
+  eliminationPhaseText: {
+    color: '#ffffff',
+  },
+  eliminationNote: {
+    backgroundColor: '#fef2f2',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: '#fecaca',
+  },
+  eliminationNoteText: {
+    fontSize: 12,
+    fontWeight: '300',
+    color: '#7f1d1d',
+    textAlign: 'center',
+  },
+  // Debug panel styles (same as player screen)
+  debugContainer: {
+    marginTop: 24,
+    padding: 16,
+    backgroundColor: '#f1f5f9',
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  debugTitle: {
+    fontSize: 14,
+    fontWeight: '300',
+    color: '#475569',
+    marginBottom: 8,
+  },
+  debugText: {
+    fontSize: 12,
+    fontWeight: '300',
+    color: '#64748b',
+    marginBottom: 4,
   },
 }); 

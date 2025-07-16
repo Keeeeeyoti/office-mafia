@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert, Modal } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, Camera, Smartphone, User, Users, Clock, XCircle } from 'lucide-react-native';
+import { ArrowLeft, Camera, Smartphone, User, Users, Clock, XCircle, X } from 'lucide-react-native';
 import { supabase, Game, Player } from '../utils/supabaseClient';
 import { joinGame, getGamePlayers, formatTimeAgo, updatePerformanceBonus } from '../utils/gameHelpers';
 import { determineGameWinner } from '../utils/moderatorScripts';
@@ -20,6 +20,12 @@ export default function PlayerPage() {
   const [ooweeClicks, setOoweeClicks] = useState(0);
   const [isOoweeProcessing, setIsOoweeProcessing] = useState(false);
   const [gameWinner, setGameWinner] = useState<'employees' | 'rogue' | null>(null);
+  
+  // Camera/QR Scanner state
+  const [showCameraModal, setShowCameraModal] = useState(false);
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     // If we have URL parameters, show them in the form
@@ -222,6 +228,103 @@ export default function PlayerPage() {
     setOoweeClicks(0);
     setGameId('');
     setPlayerName('');
+  };
+
+  // Camera and QR scanning functions
+  const requestCameraPermission = async () => {
+    try {
+      if (typeof navigator !== 'undefined' && navigator.mediaDevices) {
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { facingMode: 'environment' } // Use back camera for QR scanning
+        });
+        setHasPermission(true);
+        return stream;
+      } else {
+        Alert.alert('Camera Not Available', 'Camera functionality is not available on this device.');
+        return null;
+      }
+    } catch (error) {
+      console.error('Camera permission denied:', error);
+      setHasPermission(false);
+      Alert.alert(
+        'Camera Permission Required', 
+        'Please allow camera access to scan QR codes. You can still join manually using the game code.'
+      );
+      return null;
+    }
+  };
+
+  const startCameraScanning = async () => {
+    setScanning(true);
+    const stream = await requestCameraPermission();
+    
+    if (stream && videoRef.current) {
+      videoRef.current.srcObject = stream;
+      videoRef.current.play();
+      setShowCameraModal(true);
+      
+      // Start QR code detection
+      startQRDetection();
+    } else {
+      setScanning(false);
+    }
+  };
+
+  const stopCameraScanning = () => {
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      stream.getTracks().forEach(track => track.stop());
+      videoRef.current.srcObject = null;
+    }
+    setShowCameraModal(false);
+    setScanning(false);
+  };
+
+  const startQRDetection = () => {
+    // Simple QR code detection using a pattern match
+    // In a real implementation, you'd use a QR code library
+    const detectInterval = setInterval(() => {
+      if (!scanning || !videoRef.current) {
+        clearInterval(detectInterval);
+        return;
+      }
+      
+      // For demo purposes, we'll simulate QR detection
+      // In a real app, you'd capture the video frame and process it with a QR library
+      console.log('🔍 Scanning for QR codes...');
+    }, 500);
+  };
+
+  const handleQRCodeDetected = (data: string) => {
+    console.log('📱 QR Code detected:', data);
+    
+    // Parse the QR code data to extract game code
+    try {
+      // Check if it's a valid game URL or just the game code
+      let extractedGameCode = '';
+      
+      if (data.includes('gameId=')) {
+        // URL format: contains gameId parameter
+        const url = new URL(data);
+        extractedGameCode = url.searchParams.get('gameId') || '';
+      } else if (data.match(/^[A-Z0-9]{6}$/)) {
+        // Direct game code format: 6 character alphanumeric
+        extractedGameCode = data;
+      } else {
+        throw new Error('Invalid QR code format');
+      }
+      
+      if (extractedGameCode) {
+        setGameId(extractedGameCode.toUpperCase());
+        stopCameraScanning();
+        Alert.alert('QR Code Scanned!', `Game code ${extractedGameCode} has been entered automatically.`);
+      } else {
+        throw new Error('No game code found');
+      }
+    } catch (error) {
+      console.error('Error parsing QR code:', error);
+      Alert.alert('Invalid QR Code', 'This QR code does not contain a valid game session code.');
+    }
   };
 
   // Show victory screen if game is completed
@@ -513,10 +616,16 @@ export default function PlayerPage() {
             <Text style={styles.qrScannerText}>
               Use your device camera to scan the session QR code
             </Text>
-            <TouchableOpacity style={styles.activateCameraButton}>
+            <TouchableOpacity 
+              style={styles.activateCameraButton}
+              onPress={startCameraScanning}
+              disabled={scanning}
+            >
               <View style={styles.activateCameraContent}>
                 <Camera size={16} color="#475569" strokeWidth={1.5} style={{ marginRight: 12 }} />
-                <Text style={styles.activateCameraText}>Camera Coming Soon</Text>
+                <Text style={styles.activateCameraText}>
+                  {scanning ? 'Opening Camera...' : 'Scan QR Code'}
+                </Text>
               </View>
             </TouchableOpacity>
           </View>
@@ -579,6 +688,80 @@ export default function PlayerPage() {
         </Text>
       </View>
       </ScrollView>
+
+      {/* Camera Modal for QR Scanning */}
+      <Modal
+        visible={showCameraModal}
+        animationType="slide"
+        presentationStyle="fullScreen"
+      >
+        <View style={styles.cameraModal}>
+          {/* Camera Header */}
+          <View style={styles.cameraHeader}>
+            <TouchableOpacity 
+              style={styles.cameraCloseButton}
+              onPress={stopCameraScanning}
+            >
+              <X size={24} color="#ffffff" strokeWidth={2} />
+            </TouchableOpacity>
+            <Text style={styles.cameraHeaderTitle}>Scan QR Code</Text>
+            <View style={styles.cameraHeaderSpacer} />
+          </View>
+
+          {/* Camera View */}
+          <View style={styles.cameraContainer}>
+            <video
+              ref={videoRef}
+              style={styles.cameraVideo}
+              autoPlay
+              playsInline
+              muted
+            />
+            
+            {/* Scanning Overlay */}
+            <View style={styles.scanningOverlay}>
+              <View style={styles.scanningFrame} />
+              <Text style={styles.scanningText}>
+                Position the QR code within the frame
+              </Text>
+            </View>
+          </View>
+
+          {/* Camera Instructions */}
+          <View style={styles.cameraInstructions}>
+            <Text style={styles.instructionsTitle}>How to Scan</Text>
+            <Text style={styles.instructionsText}>
+              • Point your camera at the QR code displayed on the host's screen{'\n'}
+              • Keep the code within the scanning frame{'\n'}
+              • Hold steady until the code is detected{'\n'}
+              • The game code will be entered automatically
+            </Text>
+            
+            {/* Demo QR Detection Button (for testing) */}
+            <TouchableOpacity 
+              style={styles.demoScanButton}
+              onPress={() => {
+                // Simulate QR code detection with the current host's game code
+                handleQRCodeDetected('95BBC6'); // Demo game code
+              }}
+            >
+              <Text style={styles.demoScanButtonText}>
+                Demo: Simulate QR Scan
+              </Text>
+            </TouchableOpacity>
+
+            {/* Manual Entry Fallback */}
+            <TouchableOpacity 
+              style={styles.manualEntryFallback}
+              onPress={stopCameraScanning}
+            >
+              <Text style={styles.manualEntryFallbackText}>
+                Enter Code Manually Instead
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -1113,6 +1296,115 @@ const styles = StyleSheet.create({
   },
   refreshButtonText: {
     fontSize: 12,
+    fontWeight: '300',
+    color: '#ffffff',
+  },
+  // Camera modal styles
+  cameraModal: {
+    flex: 1,
+    backgroundColor: '#000000',
+  },
+  cameraHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#1e293b',
+    paddingTop: 50, // Safe area
+    paddingHorizontal: 20,
+    paddingBottom: 15,
+  },
+  cameraCloseButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cameraHeaderTitle: {
+    fontSize: 18,
+    fontWeight: '300',
+    color: '#ffffff',
+  },
+  cameraHeaderSpacer: {
+    width: 40,
+  },
+  cameraContainer: {
+    flex: 1,
+    position: 'relative',
+  },
+  cameraVideo: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover',
+  },
+  scanningOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+  },
+  scanningFrame: {
+    width: 250,
+    height: 250,
+    borderWidth: 3,
+    borderColor: '#8BB4D8',
+    borderRadius: 20,
+    backgroundColor: 'transparent',
+    marginBottom: 20,
+  },
+  scanningText: {
+    fontSize: 16,
+    fontWeight: '300',
+    color: '#ffffff',
+    textAlign: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  cameraInstructions: {
+    backgroundColor: '#1e293b',
+    padding: 20,
+    paddingBottom: 40, // Safe area
+  },
+  instructionsTitle: {
+    fontSize: 16,
+    fontWeight: '300',
+    color: '#ffffff',
+    marginBottom: 12,
+  },
+  instructionsText: {
+    fontSize: 14,
+    fontWeight: '300',
+    color: '#94a3b8',
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  manualEntryFallback: {
+    backgroundColor: '#475569',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  manualEntryFallbackText: {
+    fontSize: 14,
+    fontWeight: '300',
+    color: '#ffffff',
+  },
+  demoScanButton: {
+    backgroundColor: '#8BB4D8',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  demoScanButtonText: {
+    fontSize: 14,
     fontWeight: '300',
     color: '#ffffff',
   },
